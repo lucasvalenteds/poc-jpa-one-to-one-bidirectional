@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -17,8 +18,10 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @SpringBootTest
 @Testcontainers
@@ -87,5 +90,37 @@ class ApplicationTest {
         assertNotNull(documentUpdated.getPerson());
         assertEquals(documentUpdated.getPerson().getId(), personUpdated.getId());
         assertEquals(documentUpdated.getPerson().getName(), personUpdated.getName());
+    }
+
+    @Test
+    @Order(4)
+    void twoPeopleCannotHaveTheSameDocument() {
+        // Creating the document and assigning it to John
+        final var document = new Document();
+        document.setCode("XYZ12345");
+        final var documentSaved = documentRepository.save(document);
+
+        final var person1 = new Person();
+        person1.setName("John Smith");
+        person1.setDocument(document);
+        personRepository.save(person1);
+
+        // Trying to assign the same document to Mary
+        final var person2 = new Person();
+        person2.setName("Mary Jane");
+        person2.setDocument(document);
+
+        // Asserting the second assignment does not work
+        final var exception = assertThrows(
+                DataIntegrityViolationException.class,
+                () -> personRepository.save(person2)
+        );
+
+        assertThat(exception)
+                .getRootCause()
+                .hasMessageContainingAll(
+                        "ERROR: duplicate key value violates unique constraint \"person_document_id_key\"",
+                        "Detail: Key (document_id)=(2) already exists."
+                );
     }
 }
