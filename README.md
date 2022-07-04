@@ -22,7 +22,7 @@ Entity Relationship Model:
 
 ```mermaid
 classDiagram
-direction BT
+direction LR
 
 class Document {
     Long  id
@@ -33,5 +33,5 @@ class Person {
     String  name
 }
 
-Document "0..1" <--> "0..1" Person 
+Person "0..1" <--> "0..1" Document
 ```
